@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>MongoDB Add/Remove</title>
+</head>
+<body>
+  <h2>Enter Name:</h2>
+  <input type="text" id="name" placeholder="Enter name" />
+  <button onclick="addUser()">Add</button>
+  <button onclick="removeUser()">Remove</button>
+
+  <script>
+    const addUser = async () => {
+      const name = document.getElementById("name").value;
+      await fetch("http://localhost:5000/add", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name }),
+      });
+      alert("User added");
+    };
+
+    const removeUser = async () => {
+      const name = document.getElementById("name").value;
+      await fetch("http://localhost:5000/remove", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name }),
+      });
+      alert("User removed");
+    };
+  </script>
+</body>
+</html>

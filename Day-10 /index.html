@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Todo App</title>
+  <style>
+    body {
+      background-color: #1e1e1e;
+      color: #f1f1f1;
+      font-family: sans-serif;
+      padding: 2rem;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    h1 {
+      font-size: 2rem;
+      margin-bottom: 1rem;
+    }
+
+    .input-group {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 1rem;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+
+    input {
+      padding: 10px;
+      border: none;
+      border-radius: 5px;
+      background: #2d2d2d;
+      color: white;
+    }
+
+    button {
+      padding: 10px 15px;
+      border: none;
+      border-radius: 5px;
+      background-color: #3b82f6;
+      color: white;
+      cursor: pointer;
+      transition: background 0.3s;
+    }
+
+    button:hover {
+      background-color: #2563eb;
+    }
+
+    ul {
+      list-style: none;
+      padding: 0;
+      width: 100%;
+      max-width: 600px;
+    }
+
+    li {
+      background: #2d2d2d;
+      padding: 15px;
+      margin-bottom: 10px;
+      border-radius: 5px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .btn-small {
+      padding: 5px 8px;
+      font-size: 0.9rem;
+      margin-left: 5px;
+      border-radius: 4px;
+      border: none;
+      cursor: pointer;
+    }
+
+    .done {
+      text-decoration: line-through;
+      color: #999;
+    }
+  </style>
+</head>
+<body>
+  <h1>📝 Todo App</h1>
+
+  <div class="input-group">
+    <input type="number" id="todoId" placeholder="ID" />
+    <input type="text" id="todoText" placeholder="Todo text" />
+    <button id="addBtn" onclick="addOrUpdateTodo()">Add Todo</button>
+  </div>
+
+  <ul id="todoList"></ul>
+
+  <script>
+    const apiUrl = "http://localhost:8000/todos";
+    let isEditMode = false;
+
+    function getTodos() {
+      fetch(apiUrl)
+        .then(res => res.json())
+        .then(data => {
+          const list = document.getElementById("todoList");
+          list.innerHTML = "";
+          data.forEach(todo => {
+            const li = document.createElement("li");
+
+            const left = document.createElement("div");
+            left.innerHTML = `<span class="${todo.status === 'done' ? 'done' : ''}">${todo.text}</span><br><small>ID: ${todo.id}, Status: ${todo.status}</small>`;
+
+            const right = document.createElement("div");
+
+            const doneBtn = document.createElement("button");
+            doneBtn.textContent = "✔️";
+            doneBtn.className = "btn-small";
+            doneBtn.onclick = () => markAsDone(todo.id);
+
+            const editBtn = document.createElement("button");
+            editBtn.textContent = "✏️";
+            editBtn.className = "btn-small";
+            editBtn.onclick = () => loadTodoForEdit(todo);
+
+            const delBtn = document.createElement("button");
+            delBtn.textContent = "🗑️";
+            delBtn.className = "btn-small";
+            delBtn.onclick = () => deleteTodo(todo.id);
+
+            right.appendChild(doneBtn);
+            right.appendChild(editBtn);
+            right.appendChild(delBtn);
+
+            li.appendChild(left);
+            li.appendChild(right);
+            list.appendChild(li);
+          });
+        });
+    }
+
+    function addOrUpdateTodo() {
+      const id = Number(document.getElementById("todoId").value);
+      const text = document.getElementById("todoText").value;
+
+      if (!id || !text) return alert("Please provide both ID and text");
+
+      if (isEditMode) {
+        // PATCH request
+        fetch(`${apiUrl}/${id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ text }),
+        })
+          .then(res => res.json())
+          .then(() => {
+            resetForm();
+            getTodos();
+          });
+      } else {
+        // POST request
+        fetch(apiUrl, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id, text, status: "pending" }),
+        })
+          .then(res => res.json())
+          .then(() => {
+            resetForm();
+            getTodos();
+          });
+      }
+    }
+
+    function markAsDone(id) {
+      fetch(`${apiUrl}/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "done" }),
+      })
+        .then(res => res.json())
+        .then(() => getTodos());
+    }
+
+    function deleteTodo(id) {
+      fetch(`${apiUrl}/${id}`, {
+        method: "DELETE",
+      })
+        .then(res => res.json())
+        .then(() => getTodos());
+    }
+
+    function loadTodoForEdit(todo) {
+      document.getElementById("todoId").value = todo.id;
+      document.getElementById("todoText").value = todo.text;
+      document.getElementById("addBtn").textContent = "Save Edit";
+      isEditMode = true;
+    }
+
+    function resetForm() {
+      document.getElementById("todoId").value = "";
+      document.getElementById("todoText").value = "";
+      document.getElementById("addBtn").textContent = "Add Todo";
+      isEditMode = false;
+    }
+
+    // Load on start
+    getTodos();
+  </script>
+</body>
+</html>

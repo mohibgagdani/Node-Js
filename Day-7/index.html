@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Document</title>
+  </head>
+  <body>
+    <button onclick="get()">Get</button>
+    <button onclick="post()">Post</button>
+    <button onclick="put()">Put</button>
+    <button onclick="patch()">Patch</button>
+    <button onclick="Delete()">Delete</button>
+
+    <script>
+      function get() {
+        fetch("http://localhost:3000/products")
+          .then((req) => req.json())
+          .then((res) => console.log());
+      }
+
+      function post() {
+        fetch("http://localhost:3000/products", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+        })
+          .then((req) => req.json())
+          .then((res) => console.log());
+      }
+      function put() {
+        fetch("http://localhost:3000/products", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+        })
+          .then((req) => req.json())
+          .then((res) => console.log());
+      }
+      function patch() {
+        fetch("http://localhost:3000/products/id", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+        })
+          .then((req) => req.json())
+          .then((res) => console.log());
+      }
+      function Delete() {
+        fetch("http://localhost:3000/products", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+        })
+          .then((req) => req.json())
+          .then((res) => console.log());
+      }
+    </script>
+  </body>
+</html>

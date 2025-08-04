@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Movies</title>
+<link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+<h1>Movies</h1>
+
+<div class="movies">
+  <% moviesData.forEach(movie => { %>
+    <div class="card">
+      <img src="https://image.tmdb.org/t/p/w300<%= movie.poster_path %>" alt="<%= movie.title %>">
+      <h3><%= movie.title %></h3>
+      <p><%= movie.overview %></p>
+      <p><strong>Release:</strong> <%= movie.release_date %></p>
+      <p><strong>Rating:</strong> <%= movie.vote_average %></p>
+    </div>
+  <% }) %>
+</div>
+
+</body>
+</html>

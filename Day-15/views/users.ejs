@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>All Users</title>
+</head>
+<body>
+    <h1>todos</h1>
+    <ul>
+        <% users.forEach((user, i) => { %>
+            <li>
+                <%= user.name %> 
+                <form action="/delete/<%= i %>" method="POST" style="display:inline">
+                    <button>Delete</button>
+                </form>
+                <form action="/edit/<%= i %>" method="GET" style="display:inline">
+                    <button>Edit</button>
+                </form>
+            </li>
+        <% }) %>
+    </ul>
+    <br>
+    <a href="/">Add New Task</a>
+</body>
+</html>
