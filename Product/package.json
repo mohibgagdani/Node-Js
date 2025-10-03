@@ -1,0 +1,8 @@
+{
+  "name": "mern-project",
+  "version": "1.0.0",
+  "scripts": {
+    "start:backend": "cd backend && npm install && npm start",
+    "start:frontend": "cd frontend && npm install && npm run dev"
+  }
+}
