@@ -2,11 +2,29 @@ const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 const Admin = require('../models/Admin');
 
+// In-memory token blacklist (in production, use Redis)
+const tokenBlacklist = new Set();
+
+// Function to blacklist a token
+const blacklistToken = (token) => {
+  tokenBlacklist.add(token);
+};
+
+// Function to check if token is blacklisted
+const isTokenBlacklisted = (token) => {
+  return tokenBlacklist.has(token);
+};
+
 const authMiddleware = async (req, res, next) => {
   try {
     const token = req.header('Authorization')?.replace('Bearer ', '');
     if (!token) {
       return res.status(401).json({ message: 'No token provided' });
+    }
+
+    // Check if token is blacklisted
+    if (isTokenBlacklisted(token)) {
+      return res.status(401).json({ message: 'Token has been revoked' });
     }
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
@@ -17,8 +35,12 @@ const authMiddleware = async (req, res, next) => {
     }
 
     req.user = user;
+    req.token = token;
     next();
   } catch (error) {
+    if (error.name === 'TokenExpiredError') {
+      return res.status(401).json({ message: 'Token has expired' });
+    }
     res.status(401).json({ message: 'Invalid token' });
   }
 };
@@ -30,6 +52,11 @@ const adminMiddleware = async (req, res, next) => {
       return res.status(401).json({ message: 'No token provided' });
     }
 
+    // Check if token is blacklisted
+    if (isTokenBlacklisted(token)) {
+      return res.status(401).json({ message: 'Token has been revoked' });
+    }
+
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     const admin = await Admin.findById(decoded.adminId);
     
@@ -38,10 +65,14 @@ const adminMiddleware = async (req, res, next) => {
     }
 
     req.admin = admin;
+    req.token = token;
     next();
   } catch (error) {
+    if (error.name === 'TokenExpiredError') {
+      return res.status(401).json({ message: 'Token has expired' });
+    }
     res.status(401).json({ message: 'Invalid admin token' });
   }
 };
 
-module.exports = { authMiddleware, adminMiddleware };
+module.exports = { authMiddleware, adminMiddleware, blacklistToken, isTokenBlacklisted };

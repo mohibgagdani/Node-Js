@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import axios from 'axios';
 import toast from 'react-hot-toast';
@@ -14,6 +14,10 @@ const Login = () => {
   const [loading, setLoading] = useState(false);
   const { login, adminLogin } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+  
+  // Get the redirect path from location state
+  const from = location.state?.from?.pathname || '/dashboard';
 
   const handleChange = (e) => {
     setFormData({
@@ -27,18 +31,16 @@ const Login = () => {
     setLoading(true);
 
     try {
-      // Try admin login first
       if (formData.email === 'admin@gmail.com') {
-        const response = await axios.post('http://localhost:8080/api/auth/admin/login', formData);
+        const response = await axios.post('http://localhost:3033/api/auth/admin/login', formData);
         adminLogin(response.data.admin, response.data.token);
         toast.success('Welcome Admin! 🎉');
-        navigate('/admin/dashboard');
+        navigate('/admin/dashboard', { replace: true });
       } else {
-        // Regular user login
-        const response = await axios.post('http://localhost:8080/api/auth/login', formData);
+        const response = await axios.post('http://localhost:3033/api/auth/login', formData);
         login(response.data.user, response.data.token);
         toast.success('Welcome back! 🎉');
-        navigate('/dashboard');
+        navigate(from, { replace: true });
       }
     } catch (error) {
       toast.error(error.response?.data?.message || 'Login failed');

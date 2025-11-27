@@ -18,8 +18,8 @@ const Home = () => {
   const fetchData = async () => {
     try {
       const [routesRes, offersRes] = await Promise.all([
-        axios.get('http://localhost:8080/api/bus/routes'),
-        axios.get('http://localhost:8080/api/bus/offers')
+        axios.get('http://localhost:3033/api/bus/routes'),
+        axios.get('http://localhost:3033/api/bus/offers')
       ]);
       setRoutes(routesRes.data);
       setOffers(offersRes.data);
@@ -116,7 +116,7 @@ const Home = () => {
                   </Link>
                 ) : (
                   <Link to="/login" className="btn btn-primary w-full">
-                    Login to Book
+                    Book Ticket
                   </Link>
                 )}
               </div>

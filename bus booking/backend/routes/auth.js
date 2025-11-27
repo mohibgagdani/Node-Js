@@ -5,7 +5,7 @@ const User = require('../models/User');
 const Admin = require('../models/Admin');
 const OTP = require('../models/OTP');
 const { sendOTP } = require('../utils/emailService');
-const { authMiddleware } = require('../middleware/auth');
+const { authMiddleware, adminMiddleware, blacklistToken } = require('../middleware/auth');
 
 const router = express.Router();
 
@@ -78,7 +78,7 @@ router.post('/login', async (req, res) => {
       return res.status(400).json({ message: 'Invalid credentials' });
     }
 
-    const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET);
+    const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, { expiresIn: '7d' });
     res.json({ token, user: { id: user._id, name: user.name, email: user.email } });
   } catch (error) {
     res.status(500).json({ message: 'Server error', error: error.message });
@@ -100,7 +100,7 @@ router.post('/admin/login', async (req, res) => {
       return res.status(400).json({ message: 'Invalid credentials' });
     }
 
-    const token = jwt.sign({ adminId: admin._id }, process.env.JWT_SECRET);
+    const token = jwt.sign({ adminId: admin._id }, process.env.JWT_SECRET, { expiresIn: '7d' });
     res.json({ token, admin: { id: admin._id, email: admin.email } });
   } catch (error) {
     res.status(500).json({ message: 'Server error', error: error.message });
@@ -212,6 +212,37 @@ router.post('/delete-account', authMiddleware, async (req, res) => {
       return res.status(400).json({ message: 'Invalid or expired OTP' });
     }
 
+    const Booking = require('../models/Booking');
+    const BusRoute = require('../models/BusRoute');
+    const { sendAccountDeletionEmail } = require('../utils/emailService');
+    
+    const activeBookings = await Booking.find({ 
+      userId: req.user._id, 
+      status: 'active' 
+    }).populate('routeId');
+
+    const cancelledTickets = [];
+
+    for (const booking of activeBookings) {
+      booking.status = 'cancelled';
+      booking.cancelledAt = new Date();
+      await booking.save();
+      
+      await BusRoute.findByIdAndUpdate(booking.routeId, { 
+        $inc: { availableSeats: 1 } 
+      });
+
+      cancelledTickets.push({
+        ticketNumber: booking.ticketNumber,
+        busName: booking.routeId.busName,
+        from: booking.routeId.from,
+        to: booking.routeId.to,
+        seatNumber: booking.seatNumber,
+        journeyDate: booking.journeyDate
+      });
+    }
+
+    await sendAccountDeletionEmail(req.user.email, req.user.name, cancelledTickets);
     await User.findByIdAndDelete(req.user._id);
     await OTP.findByIdAndUpdate(otpRecord._id, { usedOrNot: true });
 
@@ -231,6 +262,28 @@ router.post('/request-delete-account-otp', authMiddleware, async (req, res) => {
     await sendOTP(req.user.email, otp);
 
     res.json({ message: 'OTP sent to your email for account deletion' });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+// User Logout
+router.post('/logout', authMiddleware, async (req, res) => {
+  try {
+    // Blacklist the current token
+    blacklistToken(req.token);
+    res.json({ message: 'Logged out successfully' });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+// Admin Logout
+router.post('/admin/logout', adminMiddleware, async (req, res) => {
+  try {
+    // Blacklist the current token
+    blacklistToken(req.token);
+    res.json({ message: 'Admin logged out successfully' });
   } catch (error) {
     res.status(500).json({ message: 'Server error', error: error.message });
   }

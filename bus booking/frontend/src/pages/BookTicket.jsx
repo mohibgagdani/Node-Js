@@ -19,6 +19,14 @@ const BookTicket = () => {
 
   useEffect(() => {
     fetchRoute();
+    
+    // Redirect to dashboard on back button
+    const handlePopState = () => {
+      window.location.href = '/dashboard';
+    };
+    window.addEventListener('popstate', handlePopState);
+    
+    return () => window.removeEventListener('popstate', handlePopState);
   }, [routeId]);
 
   useEffect(() => {
@@ -29,7 +37,7 @@ const BookTicket = () => {
 
   const fetchRoute = async () => {
     try {
-      const response = await axios.get(`http://localhost:8080/api/bus/routes/${routeId}`);
+      const response = await axios.get(`http://localhost:3033/api/bus/routes/${routeId}`);
       setRoute(response.data);
     } catch (error) {
       toast.error('Failed to load route details');
@@ -41,7 +49,7 @@ const BookTicket = () => {
 
   const fetchAvailableSeats = async () => {
     try {
-      const response = await axios.get(`http://localhost:8080/api/bus/routes/${routeId}/seats`, {
+      const response = await axios.get(`http://localhost:3033/api/bus/routes/${routeId}/seats`, {
         params: { journeyDate }
       });
       setAvailableSeats(response.data.availableSeats);
@@ -66,7 +74,7 @@ const BookTicket = () => {
 
     setBooking(true);
     try {
-      const response = await axios.post('http://localhost:8080/api/booking/book', {
+      const response = await axios.post('http://localhost:3033/api/booking/book', {
         routeId,
         seatNumber: selectedSeat,
         journeyDate

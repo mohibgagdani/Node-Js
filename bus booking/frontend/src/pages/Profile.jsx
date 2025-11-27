@@ -27,6 +27,14 @@ const Profile = () => {
         phone: user.phone || ''
       });
     }
+    
+    // Redirect to dashboard on back button
+    const handlePopState = () => {
+      window.location.href = '/dashboard';
+    };
+    window.addEventListener('popstate', handlePopState);
+    
+    return () => window.removeEventListener('popstate', handlePopState);
   }, [user]);
 
   const handleProfileUpdate = async (e) => {
@@ -34,7 +42,7 @@ const Profile = () => {
     setLoading(true);
 
     try {
-      await axios.put('http://localhost:8080/api/user/profile', profileData);
+      await axios.put('http://localhost:3033/api/user/profile', profileData);
       toast.success('Profile updated successfully! ✅');
     } catch (error) {
       toast.error(error.response?.data?.message || 'Failed to update profile');
@@ -45,7 +53,7 @@ const Profile = () => {
 
   const requestPasswordChangeOTP = async () => {
     try {
-      await axios.post('http://localhost:8080/api/auth/request-change-password-otp');
+      await axios.post('http://localhost:3033/api/auth/request-change-password-otp');
       setOtpAction('changePassword');
       setShowOTPModal(true);
       toast.success('OTP sent to your email 📧');
@@ -64,7 +72,7 @@ const Profile = () => {
 
     setLoading(true);
     try {
-      await axios.post('http://localhost:8080/api/auth/change-password', {
+      await axios.post('http://localhost:3033/api/auth/change-password', {
         otp,
         newPassword: passwordData.newPassword
       });
@@ -81,7 +89,7 @@ const Profile = () => {
 
   const requestDeleteAccountOTP = async () => {
     try {
-      await axios.post('http://localhost:8080/api/auth/request-delete-account-otp');
+      await axios.post('http://localhost:3033/api/auth/request-delete-account-otp');
       setOtpAction('deleteAccount');
       setShowOTPModal(true);
       toast.success('OTP sent to your email 📧');
@@ -93,7 +101,7 @@ const Profile = () => {
   const handleDeleteAccount = async () => {
     setLoading(true);
     try {
-      await axios.post('http://localhost:8080/api/auth/delete-account', { otp });
+      await axios.post('http://localhost:3033/api/auth/delete-account', { otp });
       toast.success('Account deleted successfully');
       logout();
     } catch (error) {
@@ -300,48 +308,65 @@ const Profile = () => {
       {/* OTP Modal */}
       {showOTPModal && (
         <div className="modal-overlay">
-          <div className="modal fade-in-up">
-            <h3 style={{ fontSize: '1.5rem', fontWeight: '600', marginBottom: '1rem', color: '#333' }}>
-              Enter OTP 🔐
-            </h3>
-            <p style={{ color: '#666', marginBottom: '1.5rem' }}>
-              Enter the OTP sent to your email address
-            </p>
-            <form onSubmit={handleOTPSubmit}>
-              <div className="form-group">
-                <input
-                  type="text"
-                  value={otp}
-                  onChange={(e) => setOtp(e.target.value)}
-                  className="form-input"
-                  style={{ textAlign: 'center', fontSize: '1.5rem', letterSpacing: '0.2rem' }}
-                  placeholder="Enter OTP"
-                  maxLength={6}
-                  required
-                />
+          <div className={otpAction === 'deleteAccount' ? 'delete-account-modal' : 'modal fade-in-up'}>
+            {otpAction === 'deleteAccount' && (
+              <div className="delete-modal-header">
+                <div className="delete-modal-icon">
+                  <Trash2 size={40} />
+                </div>
               </div>
-              <div style={{ display: 'flex', gap: '1rem' }}>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowOTPModal(false);
-                    setOtp('');
-                  }}
-                  className="btn btn-secondary"
-                  style={{ flex: 1 }}
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className={`btn ${otpAction === 'deleteAccount' ? 'btn-danger' : 'btn-primary'}`}
-                  style={{ flex: 1 }}
-                >
-                  {loading ? '🔄 Processing...' : '✅ Verify'}
-                </button>
-              </div>
-            </form>
+            )}
+            <div className="delete-modal-content">
+              <h3 style={{ fontSize: '1.5rem', fontWeight: '600', marginBottom: '0.5rem', color: otpAction === 'deleteAccount' ? '#ef4444' : '#333' }}>
+                {otpAction === 'deleteAccount' ? '⚠️ Delete Account' : 'Enter OTP 🔐'}
+              </h3>
+              <p style={{ color: '#666', marginBottom: '1.5rem' }}>
+                {otpAction === 'deleteAccount' 
+                  ? 'Enter OTP to permanently delete your account and cancel all tickets'
+                  : 'Enter the OTP sent to your email address'
+                }
+              </p>
+              <form onSubmit={handleOTPSubmit}>
+                <div className="form-group">
+                  <input
+                    type="text"
+                    value={otp}
+                    onChange={(e) => setOtp(e.target.value)}
+                    className="form-input"
+                    style={{ textAlign: 'center', fontSize: '1.5rem', letterSpacing: '0.2rem' }}
+                    placeholder="Enter OTP"
+                    maxLength={6}
+                    required
+                  />
+                </div>
+                {otpAction === 'deleteAccount' && (
+                  <div className="warning-box">
+                    <p>⚠️ This action cannot be undone. All your tickets will be cancelled.</p>
+                  </div>
+                )}
+                <div style={{ display: 'flex', gap: '1rem', marginTop: '1.5rem' }}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowOTPModal(false);
+                      setOtp('');
+                    }}
+                    className="btn btn-secondary"
+                    style={{ flex: 1 }}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    className={`btn ${otpAction === 'deleteAccount' ? 'btn-danger' : 'btn-primary'}`}
+                    style={{ flex: 1 }}
+                  >
+                    {loading ? '🔄 Processing...' : otpAction === 'deleteAccount' ? '🗑️ Delete' : '✅ Verify'}
+                  </button>
+                </div>
+              </form>
+            </div>
           </div>
         </div>
       )}

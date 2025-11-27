@@ -111,9 +111,18 @@ router.post('/book', authMiddleware, async (req, res) => {
 // Get user bookings
 router.get('/my-bookings', authMiddleware, async (req, res) => {
   try {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    await Booking.updateMany(
+      { status: 'active', journeyDate: { $lt: today } },
+      { $set: { status: 'completed' } }
+    );
+    
     const bookings = await Booking.find({ userId: req.user._id })
       .populate('routeId')
       .sort({ date: -1 });
+    
     res.json(bookings);
   } catch (error) {
     res.status(500).json({ message: 'Server error', error: error.message });

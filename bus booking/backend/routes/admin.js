@@ -37,6 +37,14 @@ router.get('/dashboard', adminMiddleware, async (req, res) => {
 // Get date-wise booking history
 router.get('/bookings', adminMiddleware, async (req, res) => {
   try {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    await Booking.updateMany(
+      { status: 'active', journeyDate: { $lt: today } },
+      { $set: { status: 'completed' } }
+    );
+    
     const { startDate, endDate } = req.query;
     let query = {};
     
@@ -53,6 +61,58 @@ router.get('/bookings', adminMiddleware, async (req, res) => {
       .sort({ date: -1 });
 
     res.json(bookings);
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+// Update booking
+router.put('/bookings/:id', adminMiddleware, async (req, res) => {
+  try {
+    const { seatNumber, status } = req.body;
+    const booking = await Booking.findById(req.params.id);
+    
+    if (!booking) {
+      return res.status(404).json({ message: 'Booking not found' });
+    }
+
+    if (seatNumber) booking.seatNumber = seatNumber;
+    if (status && status === 'cancelled' && booking.status === 'active') {
+      booking.status = 'cancelled';
+      booking.cancelledAt = new Date();
+      // Restore seat availability
+      await BusRoute.findByIdAndUpdate(booking.routeId, { 
+        $inc: { availableSeats: 1 } 
+      });
+    } else if (status) {
+      booking.status = status;
+    }
+    
+    await booking.save();
+    res.json({ message: 'Booking updated successfully', booking });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+// Delete booking
+router.delete('/bookings/:id', adminMiddleware, async (req, res) => {
+  try {
+    const booking = await Booking.findById(req.params.id);
+    
+    if (!booking) {
+      return res.status(404).json({ message: 'Booking not found' });
+    }
+
+    // Restore seat if booking was active
+    if (booking.status === 'active') {
+      await BusRoute.findByIdAndUpdate(booking.routeId, { 
+        $inc: { availableSeats: 1 } 
+      });
+    }
+
+    await Booking.findByIdAndDelete(req.params.id);
+    res.json({ message: 'Booking deleted successfully' });
   } catch (error) {
     res.status(500).json({ message: 'Server error', error: error.message });
   }

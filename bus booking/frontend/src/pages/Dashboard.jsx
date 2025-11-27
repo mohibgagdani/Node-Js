@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import axios from 'axios';
-import { Ticket, CreditCard, Download, MapPin, Clock } from 'lucide-react';
+import { Ticket, CreditCard, Download, MapPin, Clock, X, AlertTriangle } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 const Dashboard = () => {
@@ -10,21 +10,38 @@ const Dashboard = () => {
   const [bookings, setBookings] = useState([]);
   const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [showCancelModal, setShowCancelModal] = useState(false);
+  const [selectedBooking, setSelectedBooking] = useState(null);
+  const [cancelLoading, setCancelLoading] = useState(false);
 
   useEffect(() => {
     fetchUserData();
+    
+    // Prevent back navigation from dashboard
+    window.history.pushState(null, '', window.location.href);
+    const handlePopState = () => {
+      window.history.pushState(null, '', window.location.href);
+    };
+    window.addEventListener('popstate', handlePopState);
+    
+    return () => window.removeEventListener('popstate', handlePopState);
   }, []);
 
   const fetchUserData = async () => {
     try {
       const [bookingsRes, transactionsRes] = await Promise.all([
-        axios.get('http://localhost:8080/api/booking/my-bookings'),
-        axios.get('http://localhost:8080/api/user/transactions')
+        axios.get('http://localhost:3033/api/booking/my-bookings'),
+        axios.get('http://localhost:3033/api/user/transactions')
       ]);
       setBookings(bookingsRes.data);
       setTransactions(transactionsRes.data);
     } catch (error) {
-      toast.error('Failed to load dashboard data');
+      console.error('Dashboard error:', error);
+      if (error.response?.status === 401) {
+        toast.error('Session expired. Please login again.');
+      } else {
+        toast.error('Failed to load dashboard data');
+      }
     } finally {
       setLoading(false);
     }
@@ -32,20 +49,34 @@ const Dashboard = () => {
 
   const downloadTicket = (pdfUrl, ticketNumber) => {
     const link = document.createElement('a');
-    link.href = `http://localhost:8080${pdfUrl}`;
+    link.href = `http://localhost:3033${pdfUrl}`;
     link.download = `ticket-${ticketNumber}.pdf`;
     link.click();
   };
 
-  const cancelBooking = async (bookingId) => {
-    if (!confirm('Are you sure you want to cancel this booking?')) return;
+  const openCancelModal = (booking) => {
+    setSelectedBooking(booking);
+    setShowCancelModal(true);
+  };
 
+  const closeCancelModal = () => {
+    setShowCancelModal(false);
+    setSelectedBooking(null);
+  };
+
+  const confirmCancelBooking = async () => {
+    if (!selectedBooking) return;
+    
+    setCancelLoading(true);
     try {
-      const response = await axios.post(`http://localhost:8080/api/booking/cancel/${bookingId}`);
+      const response = await axios.post(`http://localhost:3033/api/booking/cancel/${selectedBooking._id}`);
       toast.success(`Booking cancelled! Refund: ₹${response.data.refundAmount}`);
       fetchUserData();
+      closeCancelModal();
     } catch (error) {
       toast.error(error.response?.data?.message || 'Cancellation failed');
+    } finally {
+      setCancelLoading(false);
     }
   };
 
@@ -169,7 +200,18 @@ const Dashboard = () => {
                           Cancelled
                         </span>
                       )}
-                      {booking.status !== 'cancelled' && (
+                      {booking.status === 'completed' && (
+                        <span style={{ 
+                          padding: '0.25rem 0.5rem', 
+                          borderRadius: '10px', 
+                          fontSize: '0.8rem',
+                          background: 'rgba(156, 163, 175, 0.2)',
+                          color: '#6b7280'
+                        }}>
+                          Journey Over
+                        </span>
+                      )}
+                      {booking.status === 'active' && (
                         <>
                           {booking.pdfTicketURL && (
                             <button
@@ -183,7 +225,7 @@ const Dashboard = () => {
                           )}
                           {new Date(booking.journeyDate || booking.date) > new Date() && (
                             <button
-                              onClick={() => cancelBooking(booking._id)}
+                              onClick={() => openCancelModal(booking)}
                               className="btn btn-danger"
                               style={{ padding: '0.5rem' }}
                               title="Cancel Booking"
@@ -220,6 +262,72 @@ const Dashboard = () => {
           </Link>
         </div>
       </div>
+
+      {/* Cancel Booking Confirmation Modal */}
+      {showCancelModal && (
+        <div className="modal-overlay" onClick={closeCancelModal}>
+          <div className="cancel-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="cancel-modal-header">
+              <div className="cancel-modal-icon">
+                <AlertTriangle size={32} />
+              </div>
+              <button 
+                className="cancel-modal-close"
+                onClick={closeCancelModal}
+              >
+                <X size={20} />
+              </button>
+            </div>
+            
+            <div className="cancel-modal-content">
+              <h3>Cancel Booking Confirmation</h3>
+              <p>Are you sure you want to cancel this booking?</p>
+              
+              {selectedBooking && (
+                <div className="booking-details">
+                  <div className="detail-item">
+                    <span className="label">Bus:</span>
+                    <span className="value">{selectedBooking.routeId?.busName}</span>
+                  </div>
+                  <div className="detail-item">
+                    <span className="label">Route:</span>
+                    <span className="value">{selectedBooking.routeId?.from} → {selectedBooking.routeId?.to}</span>
+                  </div>
+                  <div className="detail-item">
+                    <span className="label">Seat:</span>
+                    <span className="value">{selectedBooking.seatNumber}</span>
+                  </div>
+                  <div className="detail-item">
+                    <span className="label">Amount:</span>
+                    <span className="value">₹{selectedBooking.routeId?.price}</span>
+                  </div>
+                </div>
+              )}
+              
+              <div className="warning-text">
+                ⚠️ This action cannot be undone. Refund will be processed according to our cancellation policy.
+              </div>
+            </div>
+            
+            <div className="cancel-modal-actions">
+              <button 
+                className="btn btn-secondary"
+                onClick={closeCancelModal}
+                disabled={cancelLoading}
+              >
+                Keep Booking
+              </button>
+              <button 
+                className="btn btn-danger"
+                onClick={confirmCancelBooking}
+                disabled={cancelLoading}
+              >
+                {cancelLoading ? '🔄 Cancelling...' : '✅ Yes, Cancel Booking'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

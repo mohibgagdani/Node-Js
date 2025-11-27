@@ -26,7 +26,7 @@ const ForgotPassword = () => {
     setLoading(true);
 
     try {
-      await axios.post('http://localhost:8080/api/auth/forgot-password', {
+      await axios.post('http://localhost:3033/api/auth/forgot-password', {
         email: formData.email
       });
       toast.success('OTP sent to your email 📧');
@@ -49,7 +49,7 @@ const ForgotPassword = () => {
     setLoading(true);
 
     try {
-      await axios.post('http://localhost:8080/api/auth/reset-password', {
+      await axios.post('http://localhost:3033/api/auth/reset-password', {
         email: formData.email,
         otp: formData.otp,
         newPassword: formData.newPassword

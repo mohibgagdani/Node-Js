@@ -188,7 +188,7 @@ Ticket emails include:
 
 ## 📞 Support
 
-For any issues or questions, contact: support@busbooking.com
+For any issues or questions, contact: mohib.gagdani1@gmail.com
 
 ## 🎯 Usage Instructions
 

@@ -37,7 +37,7 @@ const Register = () => {
     setLoading(true);
 
     try {
-      await axios.post('http://localhost:8080/api/auth/register', {
+      await axios.post('http://localhost:3033/api/auth/register', {
         name: formData.name,
         email: formData.email,
         phone: formData.phone,
@@ -57,7 +57,7 @@ const Register = () => {
     setLoading(true);
 
     try {
-      await axios.post('http://localhost:8080/api/auth/verify-otp', {
+      await axios.post('http://localhost:3033/api/auth/verify-otp', {
         email: formData.email,
         otp
       });

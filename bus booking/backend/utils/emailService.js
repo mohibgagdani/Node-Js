@@ -69,4 +69,48 @@ const sendCancellationEmail = async (email, cancellationData) => {
   await transporter.sendMail(mailOptions);
 };
 
-module.exports = { sendOTP, sendTicketEmail, sendCancellationEmail };
+const sendAccountDeletionEmail = async (email, userName, cancelledTickets) => {
+  const ticketsList = cancelledTickets.map(ticket => `
+    <tr>
+      <td style="padding: 8px; border: 1px solid #ddd;">${ticket.ticketNumber}</td>
+      <td style="padding: 8px; border: 1px solid #ddd;">${ticket.busName}</td>
+      <td style="padding: 8px; border: 1px solid #ddd;">${ticket.from} → ${ticket.to}</td>
+      <td style="padding: 8px; border: 1px solid #ddd;">${ticket.seatNumber}</td>
+      <td style="padding: 8px; border: 1px solid #ddd;">${new Date(ticket.journeyDate).toLocaleDateString()}</td>
+    </tr>
+  `).join('');
+
+  const mailOptions = {
+    from: process.env.EMAIL_USER,
+    to: email,
+    subject: `${process.env.EMAIL_APP_NAME} - Account Deleted - All Tickets Cancelled`,
+    html: `
+      <h2>Account Deletion Confirmation</h2>
+      <p>Dear ${userName},</p>
+      <p>Your account has been successfully deleted as per your request.</p>
+      <p><strong>All your active tickets have been cancelled automatically.</strong></p>
+      ${cancelledTickets.length > 0 ? `
+      <h3>Cancelled Tickets (${cancelledTickets.length}):</h3>
+      <table style="width: 100%; border-collapse: collapse; margin-top: 10px;">
+        <thead>
+          <tr style="background-color: #f2f2f2;">
+            <th style="padding: 8px; border: 1px solid #ddd;">Ticket Number</th>
+            <th style="padding: 8px; border: 1px solid #ddd;">Bus</th>
+            <th style="padding: 8px; border: 1px solid #ddd;">Route</th>
+            <th style="padding: 8px; border: 1px solid #ddd;">Seat</th>
+            <th style="padding: 8px; border: 1px solid #ddd;">Journey Date</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${ticketsList}
+        </tbody>
+      </table>
+      ` : '<p>No active tickets were found.</p>'}
+      <p style="margin-top: 20px;">Thank you for using ${process.env.EMAIL_APP_NAME}. We hope to serve you again in the future!</p>
+    `
+  };
+
+  await transporter.sendMail(mailOptions);
+};
+
+module.exports = { sendOTP, sendTicketEmail, sendCancellationEmail, sendAccountDeletionEmail };

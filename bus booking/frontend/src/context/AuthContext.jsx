@@ -22,21 +22,50 @@ export const AuthProvider = ({ children }) => {
     
     if (token) {
       axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-      // Verify token validity
       fetchUserProfile();
     } else if (adminToken) {
       axios.defaults.headers.common['Authorization'] = `Bearer ${adminToken}`;
-      setAdmin({ token: adminToken });
+      verifyAdminToken(adminToken);
+    } else {
+      setLoading(false);
     }
-    setLoading(false);
+  }, []);
+
+  useEffect(() => {
+    // Add axios interceptor for automatic logout on 401
+    const interceptor = axios.interceptors.response.use(
+      (response) => response,
+      (error) => {
+        if (error.response?.status === 401 && error.config.url.includes('/api/user/profile')) {
+          logout();
+          window.location.href = '/login';
+        }
+        return Promise.reject(error);
+      }
+    );
+
+    return () => axios.interceptors.response.eject(interceptor);
   }, []);
 
   const fetchUserProfile = async () => {
     try {
-      const response = await axios.get('http://localhost:8080/api/user/profile');
+      const response = await axios.get('http://localhost:3033/api/user/profile');
       setUser(response.data);
     } catch (error) {
       logout();
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const verifyAdminToken = async (token) => {
+    try {
+      const response = await axios.get('http://localhost:3033/api/admin/dashboard');
+      setAdmin({ token, verified: true });
+    } catch (error) {
+      logout();
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -58,6 +87,7 @@ export const AuthProvider = ({ children }) => {
     delete axios.defaults.headers.common['Authorization'];
     setUser(null);
     setAdmin(null);
+    window.location.href = '/';
   };
 
   const value = {

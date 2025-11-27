@@ -18,6 +18,8 @@ const AdminDashboard = () => {
   const [showExportModal, setShowExportModal] = useState(false);
   const [exportDates, setExportDates] = useState({ startDate: '', endDate: '' });
   const [bookingDates, setBookingDates] = useState({ startDate: '', endDate: '' });
+  const [editingBooking, setEditingBooking] = useState(null);
+  const [bookingForm, setBookingForm] = useState({ seatNumber: '', status: '' });
 
   const [routeForm, setRouteForm] = useState({
     busName: '', from: '', to: '', departureTime: '', arrivalTime: '', price: '', totalSeats: ''
@@ -29,18 +31,27 @@ const AdminDashboard = () => {
 
   useEffect(() => {
     fetchDashboardData();
-    const interval = setInterval(fetchDashboardData, 3000);
-    return () => clearInterval(interval);
+    
+    // Prevent back navigation from admin dashboard
+    window.history.pushState(null, '', window.location.href);
+    const handlePopState = () => {
+      window.history.pushState(null, '', window.location.href);
+    };
+    window.addEventListener('popstate', handlePopState);
+    
+    return () => {
+      window.removeEventListener('popstate', handlePopState);
+    };
   }, []);
 
   const fetchDashboardData = async () => {
     try {
       const [statsRes, routesRes, offersRes, usersRes, bookingsRes] = await Promise.all([
-        axios.get('http://localhost:8080/api/admin/dashboard'),
-        axios.get('http://localhost:8080/api/admin/routes'),
-        axios.get('http://localhost:8080/api/admin/offers'),
-        axios.get('http://localhost:8080/api/admin/users'),
-        axios.get('http://localhost:8080/api/admin/bookings')
+        axios.get('http://localhost:3033/api/admin/dashboard'),
+        axios.get('http://localhost:3033/api/admin/routes'),
+        axios.get('http://localhost:3033/api/admin/offers'),
+        axios.get('http://localhost:3033/api/admin/users'),
+        axios.get('http://localhost:3033/api/admin/bookings')
       ]);
 
       setStats(statsRes.data);
@@ -48,7 +59,6 @@ const AdminDashboard = () => {
       setOffers(offersRes.data);
       setUsers(usersRes.data);
       setAllBookings(bookingsRes.data);
-      setBookings([]);
     } catch (error) {
       toast.error('Failed to load dashboard data');
     } finally {
@@ -60,10 +70,10 @@ const AdminDashboard = () => {
     e.preventDefault();
     try {
       if (editingItem) {
-        await axios.put(`http://localhost:8080/api/admin/routes/${editingItem._id}`, routeForm);
+        await axios.put(`http://localhost:3033/api/admin/routes/${editingItem._id}`, routeForm);
         toast.success('Route updated successfully ✅');
       } else {
-        await axios.post('http://localhost:8080/api/admin/routes', routeForm);
+        await axios.post('http://localhost:3033/api/admin/routes', routeForm);
         toast.success('Route added successfully ✅');
       }
       setShowModal(false);
@@ -79,10 +89,10 @@ const AdminDashboard = () => {
     e.preventDefault();
     try {
       if (editingItem) {
-        await axios.put(`http://localhost:8080/api/admin/offers/${editingItem._id}`, offerForm);
+        await axios.put(`http://localhost:3033/api/admin/offers/${editingItem._id}`, offerForm);
         toast.success('Offer updated successfully ✅');
       } else {
-        await axios.post('http://localhost:8080/api/admin/offers', offerForm);
+        await axios.post('http://localhost:3033/api/admin/offers', offerForm);
         toast.success('Offer added successfully ✅');
       }
       setShowModal(false);
@@ -98,7 +108,7 @@ const AdminDashboard = () => {
     if (!confirm('Are you sure you want to delete this item?')) return;
 
     try {
-      await axios.delete(`http://localhost:8080/api/admin/${type}/${id}`);
+      await axios.delete(`http://localhost:3033/api/admin/${type}/${id}`);
       toast.success('Item deleted successfully ✅');
       fetchDashboardData();
     } catch (error) {
@@ -113,7 +123,7 @@ const AdminDashboard = () => {
     }
 
     try {
-      const response = await axios.get('http://localhost:8080/api/admin/export/bookings', {
+      const response = await axios.get('http://localhost:3033/api/admin/export/bookings', {
         params: {
           startDate: exportDates.startDate,
           endDate: exportDates.endDate
@@ -145,10 +155,44 @@ const AdminDashboard = () => {
       setRouteForm(item || { busName: '', from: '', to: '', departureTime: '', arrivalTime: '', price: '', totalSeats: '' });
     } else if (type === 'offer') {
       setOfferForm(item || { offerTitle: '', offerDescription: '', discountValue: '', validTill: '' });
+    } else if (type === 'booking') {
+      setBookingForm({ seatNumber: item?.seatNumber || '', status: item?.status || 'active' });
+      setEditingBooking(item);
     }
     
     setShowModal(true);
   };
+
+  const handleBookingUpdate = async (e) => {
+    e.preventDefault();
+    try {
+      await axios.put(`http://localhost:3033/api/admin/bookings/${editingBooking._id}`, bookingForm);
+      toast.success('Booking updated successfully ✅');
+      setShowModal(false);
+      setEditingBooking(null);
+      setBookingForm({ seatNumber: '', status: '' });
+      
+      // Refresh data
+      const bookingsRes = await axios.get('http://localhost:3033/api/admin/bookings');
+      setAllBookings(bookingsRes.data);
+      
+      // Re-apply filter if dates are set
+      if (bookingDates.startDate && bookingDates.endDate) {
+        const start = new Date(bookingDates.startDate);
+        const end = new Date(bookingDates.endDate);
+        end.setHours(23, 59, 59, 999);
+        const filtered = bookingsRes.data.filter(booking => {
+          const bookingDate = new Date(booking.date);
+          return bookingDate >= start && bookingDate <= end;
+        });
+        setBookings([...filtered]);
+      }
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Update failed');
+    }
+  };
+
+
 
   if (loading) {
     return (
@@ -465,15 +509,18 @@ const AdminDashboard = () => {
                       toast.error('Please select both dates');
                       return;
                     }
+                    const start = new Date(bookingDates.startDate);
+                    const end = new Date(bookingDates.endDate);
+                    end.setHours(23, 59, 59, 999);
+                    
                     const filtered = allBookings.filter(booking => {
                       const bookingDate = new Date(booking.date);
-                      const start = new Date(bookingDates.startDate);
-                      const end = new Date(bookingDates.endDate);
                       return bookingDate >= start && bookingDate <= end;
                     });
-                    setBookings(filtered);
+                    setBookings([...filtered]);
                     toast.success(`Found ${filtered.length} bookings`);
                   }}
+                  type="button"
                   className="btn btn-primary"
                 >
                   Filter
@@ -514,10 +561,10 @@ const AdminDashboard = () => {
                           padding: '0.25rem 0.5rem', 
                           borderRadius: '10px', 
                           fontSize: '0.8rem',
-                          background: 'rgba(74, 222, 128, 0.2)',
-                          color: '#16a34a'
+                          background: booking.status === 'cancelled' ? 'rgba(239, 68, 68, 0.2)' : booking.status === 'completed' ? 'rgba(156, 163, 175, 0.2)' : 'rgba(74, 222, 128, 0.2)',
+                          color: booking.status === 'cancelled' ? '#dc2626' : booking.status === 'completed' ? '#6b7280' : '#16a34a'
                         }}>
-                          {booking.paymentStatus}
+                          {booking.status === 'completed' ? 'Journey Over' : booking.status}
                         </span>
                       </td>
                     </tr>
@@ -595,7 +642,7 @@ const AdminDashboard = () => {
         <div className="modal-overlay">
           <div className="modal fade-in-up">
             <h3 style={{ fontSize: '1.5rem', fontWeight: '600', marginBottom: '1rem', color: '#333' }}>
-              {editingItem ? 'Edit' : 'Add'} {modalType === 'route' ? 'Route' : 'Offer'}
+              {modalType === 'booking' ? 'Edit Booking' : `${editingItem ? 'Edit' : 'Add'} ${modalType === 'route' ? 'Route' : 'Offer'}`}
             </h3>
             
             {modalType === 'route' ? (
@@ -682,6 +729,57 @@ const AdminDashboard = () => {
                   </button>
                 </div>
               </form>
+            ) : modalType === 'booking' ? (
+              <form onSubmit={handleBookingUpdate}>
+                <div className="form-group">
+                  <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '600', color: '#333' }}>
+                    Seat Number
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="Seat Number"
+                    value={bookingForm.seatNumber}
+                    onChange={(e) => setBookingForm({ ...bookingForm, seatNumber: e.target.value })}
+                    className="form-input"
+                    required
+                  />
+                </div>
+                <div className="form-group">
+                  <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '600', color: '#333' }}>
+                    Status
+                  </label>
+                  <select
+                    value={bookingForm.status}
+                    onChange={(e) => setBookingForm({ ...bookingForm, status: e.target.value })}
+                    className="form-input"
+                    required
+                  >
+                    <option value="active">Active</option>
+                    <option value="cancelled">Cancelled</option>
+                  </select>
+                </div>
+                <div style={{ display: 'flex', gap: '1rem' }}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowModal(false);
+                      setEditingBooking(null);
+                      setBookingForm({ seatNumber: '', status: '' });
+                    }}
+                    className="btn btn-secondary"
+                    style={{ flex: 1 }}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="btn btn-primary"
+                    style={{ flex: 1 }}
+                  >
+                    Update
+                  </button>
+                </div>
+              </form>
             ) : (
               <form onSubmit={handleOfferSubmit}>
                 <div className="form-group">
@@ -744,6 +842,8 @@ const AdminDashboard = () => {
           </div>
         </div>
       )}
+
+
     </div>
   );
 };

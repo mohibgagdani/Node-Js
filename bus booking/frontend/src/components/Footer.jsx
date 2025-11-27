@@ -26,11 +26,11 @@ const Footer = () => {
             <h4>Contact Info</h4>
             <div className="contact-item">
               <Mail size={16} />
-              <span>support@busbooking.com</span>
+              <span>mohib.gagdani1@gmail.com</span>
             </div>
             <div className="contact-item">
               <Phone size={16} />
-              <span>+91 98765 43210</span>
+              <span>+91123456789</span>
             </div>
             <div className="contact-item">
               <MapPin size={16} />
