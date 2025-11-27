@@ -152,7 +152,7 @@ If you encounter any issues:
 3. Check console for error messages
 4. Ensure ports 5000 and 5173 are available
 
-**Contact**: support@busbooking.com
+**Contact**: mohib.gagdani1@gmail.com
 
 ---
 
